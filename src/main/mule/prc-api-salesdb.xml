@@ -1,0 +1,300 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<mule xmlns:os="http://www.mulesoft.org/schema/mule/os" xmlns="http://www.mulesoft.org/schema/mule/core" xmlns:apikit="http://www.mulesoft.org/schema/mule/mule-apikit" xmlns:doc="http://www.mulesoft.org/schema/mule/documentation" xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core" xmlns:http="http://www.mulesoft.org/schema/mule/http" xmlns:salesforce="http://www.mulesoft.org/schema/mule/salesforce" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd http://www.mulesoft.org/schema/mule/mule-apikit http://www.mulesoft.org/schema/mule/mule-apikit/current/mule-apikit.xsd http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd  http://www.mulesoft.org/schema/mule/salesforce http://www.mulesoft.org/schema/mule/salesforce/current/mule-salesforce.xsd
+http://www.mulesoft.org/schema/mule/os http://www.mulesoft.org/schema/mule/os/current/mule-os.xsd">
+    <http:listener-config name="prc-api-salesdb-httpListenerConfig">
+        <http:listener-connection host="0.0.0.0" port="8082" />
+    </http:listener-config>
+    <apikit:config name="prc-api-salesdb-config" api="resource::4ab036c8-954c-4032-9376-0547155ec356:prc-api-salesdb:1.0.2:raml:zip:prc-api-salesdb.raml" outboundHeadersMapName="outboundHeaders" httpStatusVarName="httpStatus" />
+    <http:request-config name="HTTP_Request_configuration" doc:name="HTTP Request configuration" doc:id="1654e4b5-2754-4a3c-a6aa-01272c510735" basePath="/api">
+        <http:request-connection host="localhost" port="8083" />
+    </http:request-config>
+    <salesforce:sfdc-config name="Salesforce_Config" doc:name="Salesforce Config" doc:id="4178584e-9fca-4298-b449-956f6cac1329">
+        <salesforce:basic-connection username="srinathrajarethinam-pztv@force.com" password="Persiabroly@459" securityToken="DjukcyKzwE09qmOchHjuDSZoL" />
+    </salesforce:sfdc-config>
+    <http:request-config name="HTTP_Request_configuration1" doc:name="HTTP Request configuration" doc:id="402fa541-c928-4ae5-bef7-ef44d9ccb392" basePath="/api" >
+		<http:request-connection host="localhost" port="8085" />
+	</http:request-config>
+	<flow name="prc-api-salesdb-main">
+        <http:listener config-ref="prc-api-salesdb-httpListenerConfig" path="/api/*">
+            <http:response statusCode="#[vars.httpStatus default 200]">
+                <http:headers>#[vars.outboundHeaders default {}]</http:headers>
+            </http:response>
+            <http:error-response statusCode="#[vars.httpStatus default 500]">
+                <http:body>#[payload]</http:body>
+                <http:headers>#[vars.outboundHeaders default {}]</http:headers>
+            </http:error-response>
+        </http:listener>
+        <apikit:router config-ref="prc-api-salesdb-config" />
+        <error-handler>
+            <on-error-propagate type="APIKIT:BAD_REQUEST">
+                <ee:transform doc:name="Transform Message">
+                    <ee:message>
+                        <ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{message: "Bad request"}]]></ee:set-payload>
+                    </ee:message>
+                    <ee:variables>
+                        <ee:set-variable variableName="httpStatus">400</ee:set-variable>
+                    </ee:variables>
+                </ee:transform>
+            </on-error-propagate>
+            <on-error-propagate type="APIKIT:NOT_FOUND">
+                <ee:transform doc:name="Transform Message">
+                    <ee:message>
+                        <ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{message: "Resource not found"}]]></ee:set-payload>
+                    </ee:message>
+                    <ee:variables>
+                        <ee:set-variable variableName="httpStatus">404</ee:set-variable>
+                    </ee:variables>
+                </ee:transform>
+            </on-error-propagate>
+            <on-error-propagate type="APIKIT:METHOD_NOT_ALLOWED">
+                <ee:transform doc:name="Transform Message">
+                    <ee:message>
+                        <ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{message: "Method not allowed"}]]></ee:set-payload>
+                    </ee:message>
+                    <ee:variables>
+                        <ee:set-variable variableName="httpStatus">405</ee:set-variable>
+                    </ee:variables>
+                </ee:transform>
+            </on-error-propagate>
+            <on-error-propagate type="APIKIT:NOT_ACCEPTABLE">
+                <ee:transform doc:name="Transform Message">
+                    <ee:message>
+                        <ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{message: "Not acceptable"}]]></ee:set-payload>
+                    </ee:message>
+                    <ee:variables>
+                        <ee:set-variable variableName="httpStatus">406</ee:set-variable>
+                    </ee:variables>
+                </ee:transform>
+            </on-error-propagate>
+            <on-error-propagate type="APIKIT:UNSUPPORTED_MEDIA_TYPE">
+                <ee:transform doc:name="Transform Message">
+                    <ee:message>
+                        <ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{message: "Unsupported media type"}]]></ee:set-payload>
+                    </ee:message>
+                    <ee:variables>
+                        <ee:set-variable variableName="httpStatus">415</ee:set-variable>
+                    </ee:variables>
+                </ee:transform>
+            </on-error-propagate>
+            <on-error-propagate type="APIKIT:NOT_IMPLEMENTED">
+                <ee:transform doc:name="Transform Message">
+                    <ee:message>
+                        <ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{message: "Not Implemented"}]]></ee:set-payload>
+                    </ee:message>
+                    <ee:variables>
+                        <ee:set-variable variableName="httpStatus">501</ee:set-variable>
+                    </ee:variables>
+                </ee:transform>
+            </on-error-propagate>
+        </error-handler>
+    </flow>
+    <flow name="prc-api-salesdb-console">
+        <http:listener config-ref="prc-api-salesdb-httpListenerConfig" path="/console/*">
+            <http:response statusCode="#[vars.httpStatus default 200]">
+                <http:headers>#[vars.outboundHeaders default {}]</http:headers>
+            </http:response>
+            <http:error-response statusCode="#[vars.httpStatus default 500]">
+                <http:body>#[payload]</http:body>
+                <http:headers>#[vars.outboundHeaders default {}]</http:headers>
+            </http:error-response>
+        </http:listener>
+        <apikit:console config-ref="prc-api-salesdb-config" />
+        <error-handler>
+            <on-error-propagate type="APIKIT:NOT_FOUND">
+                <ee:transform doc:name="Transform Message">
+                    <ee:message>
+                        <ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{message: "Resource not found"}]]></ee:set-payload>
+                    </ee:message>
+                    <ee:variables>
+                        <ee:set-variable variableName="httpStatus">404</ee:set-variable>
+                    </ee:variables>
+                </ee:transform>
+            </on-error-propagate>
+        </error-handler>
+    </flow>
+    <flow name="get:\syncStatus:prc-api-salesdb-config">
+        <!-- [STUDIO:"Query all"]<salesforce:query-all doc:name="Query all" doc:id="3ffd2516-4030-483d-9be2-f36f8bbb978c" config-ref="Salesforce_Config">
+            <salesforce:salesforce-query><![CDATA[SELECT Id, Name, AnnualRevenue, NumberOfEmployees, AccountEmail__c, CreatedDate, LastModifiedDate 
+FROM Account&#93;&#93;></salesforce:salesforce-query>
+        </salesforce:query-all> [STUDIO] -->
+		<logger level="INFO" doc:name="schedulerStart" doc:id="59ec6b50-93fe-4d1f-9561-50df96b61731" message='#["scheduler start"]'/>
+		<os:retrieve doc:name="lastModifiedDateRetrieve" doc:id="ac99eab3-bf98-4e1b-afee-294d8b692116" key="lastModifiedDate" target="lastModifiedDate">
+			<os:default-value ><![CDATA[#[(now() >> "UTC") as DateTime as String {format:"yyyy-MM-dd'T'HH:mm:ss.SSS'Z'"}]]]></os:default-value>
+		</os:retrieve>
+		<logger level="INFO" doc:name="retrieveVariable" doc:id="41dbac9f-1fd8-4260-984e-c31596c9d1b2" message="#[vars.lastModifiedDate]"/>
+		<http:request method="GET" doc:name="Request" doc:id="37c5bc2c-24bd-4cc2-9a62-a0cd766dbdd9" config-ref="HTTP_Request_configuration1" path="/accountCreation">
+			<http:query-params ><![CDATA[#[output application/java
+---
+{
+	lastModifiedDate : vars.lastModifiedDate
+}]]]></http:query-params>
+		</http:request>
+		<logger level="INFO" doc:name="paylodFromSalesforceQuery" doc:id="8c89b66f-72bd-4e4a-9931-d3b760604781" message="#[payload]" />
+        <ee:transform doc:name="Transform Message" doc:id="a7486c68-5065-4122-ad43-9ada859dfcfc">
+            <ee:message>
+                <ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+payload]]></ee:set-payload>
+            </ee:message>
+        </ee:transform>
+        <set-variable value="#[%dw 2.0&#10;output application/json&#10;---&#10;(payload orderBy ((item, index) -&gt; item.LastModifiedDate))[-1].LastModifiedDate default (now() &gt;&gt; &quot;UTC&quot;) as DateTime as String {format:&quot;yyyy-MM-dd'T'HH:mm:ss.SSS'Z'&quot;}]" doc:name="lastModifiedDate" doc:id="a776d609-8c2f-49c1-844f-b5fd2c6386d7" variableName="lastModifiedDate"/>
+		<os:store doc:name="lastModifiedDateStore" doc:id="e2cb3b71-969c-4a3e-9489-89d8d68ab3cb" key="lastModifiedDate">
+			<os:value ><![CDATA[#[vars.lastModifiedDate]]]></os:value>
+		</os:store>
+		<logger level="INFO" doc:name="lastModifiedDateStore" doc:id="00afa417-eed9-41c3-9f32-39aadaac7fe3" message='#[{"payloadFromSalesforceQuery":payload,&#10;"lastModifiedDate":vars.lastModifiedDate}]' />
+        <flow-ref doc:name="Flow Reference" doc:id="28bab80a-5ef0-4023-ad0c-e320909a7ff5" name="post:\syncAccounts:application\json:prc-api-salesdb-config" />
+        <logger level="INFO" doc:name="payloadStatusFromDatabase" doc:id="53b6e2e3-ffe5-4f54-9df3-23197a8703b2" message="#[payload]" />
+        <ee:transform doc:name="Transform Message">
+            <ee:message>
+                <ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+if (payload[0] == null)
+  { status: "No New Accounts from Salesforce" }
+ else {
+  status: "Account created/updated successfully"
+}]]></ee:set-payload>
+            </ee:message>
+        </ee:transform>
+    </flow>
+    <flow name="post:\syncAccounts:application\json:prc-api-salesdb-config" doc:id="f1048506-5f24-43b8-bc19-b03fac4a8511">
+        <ee:transform doc:name="Transform Message" doc:id="ce478dc4-9608-4fab-8730-74b3ab285526">
+            <ee:message>
+                <ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+payload]]></ee:set-payload>
+            </ee:message>
+        </ee:transform>
+        <foreach doc:name="For Each" doc:id="8da3b0ec-7c34-4a38-bcf7-c335b9d8dbab">
+            <set-variable value="#[payload.Id]" doc:name="Set Variable" doc:id="831b1310-0876-4590-bb17-3336d3d1207f" variableName="id" />
+            <http:request method="GET" doc:name="Request" doc:id="e408efc5-2330-47a8-a5bc-b5698a72c689" path="/accountRetieve" config-ref="HTTP_Request_configuration" outputMimeType="application/json" target="aa">
+                <http:query-params><![CDATA[#[output application/java
+---
+{
+	Id : vars.id
+}]]]></http:query-params>
+            </http:request>
+            <logger level="INFO" doc:name="payloadFromDatabase" doc:id="66c25504-2105-4df5-b044-13a626289008" message="#[payload]" />
+            <choice doc:name="Choice" doc:id="ecd240d0-5977-48ad-b95d-7fa4cf8467a8">
+                <when expression="#[!isEmpty(vars.aa.Account_id)]">
+                    <http:request method="PUT" doc:name="Request" doc:id="f2e5a298-eb38-4727-9bbd-7375fec5eb51" config-ref="HTTP_Request_configuration" path="/accountCreation/{Id}">
+                        <http:uri-params><![CDATA[#[output application/java
+---
+{
+	Id : vars.id
+}]]]></http:uri-params>
+                    </http:request>
+                    <ee:transform doc:name="Transform Message" doc:id="6cc41716-b5a5-428c-b6ce-17c77d74d6d7">
+                        <ee:message>
+                            <ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{
+  status: "Account updated successfully"
+}]]></ee:set-payload>
+                        </ee:message>
+                    </ee:transform>
+                </when>
+                <otherwise>
+                    <http:request method="POST" doc:name="Request" doc:id="590f80c6-8d1a-4c2e-be9f-2656b12e7b64" path="/accountCreation" config-ref="HTTP_Request_configuration" />
+                    <ee:transform doc:name="Transform Message">
+                        <ee:message>
+                            <ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{
+  status: "Account created successfully"
+}]]></ee:set-payload>
+                        </ee:message>
+                    </ee:transform>
+                </otherwise>
+            </choice>
+        </foreach>
+    </flow>
+    <flow name="put:\syncAccounts:application\json:prc-api-salesdb-config">
+        <!-- [STUDIO:"On Modified Object"]<salesforce:modified-object-listener objectType="Account" doc:name="On Modified Object" doc:id="a1d3a391-e024-4d76-950d-cabae1a5aa25" config-ref="Salesforce_Config">
+			<scheduling-strategy >
+				<fixed-frequency frequency="20" timeUnit="SECONDS"/>
+			</scheduling-strategy>
+		</salesforce:modified-object-listener> [STUDIO] -->
+		<logger level="INFO" doc:name="Logger" doc:id="61f5f885-23ad-4c75-bafe-667f970c4d31" message="#[payload]" />
+		<ee:transform doc:name="Transform Message1" doc:id="5ea6ad27-f4b4-4b1d-be2b-07c980ac6039" >
+			<ee:message >
+				<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+payload]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+		<set-variable value="#[payload.Id]" doc:name="Set Variable" doc:id="457ff33c-a607-4558-8aab-220224172671" variableName="checkId"/>
+		<http:request method="PUT" doc:name="Request" doc:id="e2180480-89a9-4ccf-89fd-7824b6b5218f" config-ref="HTTP_Request_configuration" path="/accountCreation/{Id}" >
+			<http:uri-params ><![CDATA[#[output application/java
+---
+{
+	Id : vars.checkId
+}]]]></http:uri-params>
+		</http:request>
+		<ee:transform doc:name="Transform Message">
+            <ee:message>
+                <ee:set-payload><![CDATA[%dw 2.0
+output application/java
+---
+{
+  status: "Account updated successfully"
+}]]></ee:set-payload>
+            </ee:message>
+        </ee:transform>
+		<logger level="INFO" doc:name="Logger1" doc:id="0aa7c4e8-5546-4898-8866-d0878b175f47" message="#[payload]" />
+    </flow>
+	<flow name="prc-api-salesdbFlow" doc:id="22643c12-fcae-42e2-82f1-ec67476882df" >
+		<!-- [STUDIO:"On New Object"]<salesforce:new-object-listener objectType="Account" doc:name="On New Object" doc:id="46cc64b9-7b8d-40a9-a335-605de60c83dd" config-ref="Salesforce_Config">
+			<scheduling-strategy >
+				<fixed-frequency frequency="10"/>
+			</scheduling-strategy>
+		</salesforce:new-object-listener> [STUDIO] -->
+		<logger level="INFO" doc:name="Logger" doc:id="3e9e9a1c-037d-4fd4-9ce4-accfd4e03c1e" message="#[payload]"/>
+		<ee:transform doc:name="Transform Message" doc:id="0ef5f454-bfc4-474b-a91b-d5cb0ea35917" >
+			<ee:message >
+				<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+payload]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+		<http:request method="POST" doc:name="Request" doc:id="e05ec715-34fe-45dd-9e80-dcbd43a68132" config-ref="HTTP_Request_configuration" path="/accountCreation" />
+		<ee:transform doc:name="Transform Message1" doc:id="ee954965-6fb4-43d7-8ae0-8fd6610268d2" >
+			<ee:message >
+				<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+{
+  status: "Account created successfully"
+}]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+		<logger level="INFO" doc:name="Logger" doc:id="56d5190a-cd49-4ba0-82ca-3b099e3513a7" message="#[payload]"/>
+	</flow>
+</mule>
