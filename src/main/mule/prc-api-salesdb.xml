@@ -12,7 +12,7 @@ http://www.mulesoft.org/schema/mule/os http://www.mulesoft.org/schema/mule/os/cu
         <salesforce:basic-connection username="srinathrajarethinam-pztv@force.com" password="Persiabroly@459" securityToken="DjukcyKzwE09qmOchHjuDSZoL" />
     </salesforce:sfdc-config>
     <http:request-config name="HTTP_Request_configuration1" doc:name="HTTP Request configuration" doc:id="402fa541-c928-4ae5-bef7-ef44d9ccb392" basePath="/api" >
-		<http:request-connection host="localhost" port="8081" />
+		<http:request-connection host="localhost" port="8085" />
 	</http:request-config>
 	<flow name="prc-api-salesdb-main">
         <http:listener config-ref="prc-api-salesdb-httpListenerConfig" path="/api/*">
@@ -138,26 +138,19 @@ output application/json
             <salesforce:salesforce-query><![CDATA[SELECT Id, Name, AnnualRevenue, NumberOfEmployees, AccountEmail__c, CreatedDate, LastModifiedDate 
 FROM Account&#93;&#93;></salesforce:salesforce-query>
         </salesforce:query-all> [STUDIO] -->
-		<logger level="INFO" doc:name="Logger" doc:id="59ec6b50-93fe-4d1f-9561-50df96b61731" message='#["scheduler start"]'/>
-		<os:retrieve doc:name="Retrieve" doc:id="ac99eab3-bf98-4e1b-afee-294d8b692116" key="lastRunTime" target="lastRun">
-			<os:default-value ><![CDATA[#[now()as DateTime as String {format:"yyyy-MM-dd'T'HH:mm:ss.SSS'Z'"}]]]></os:default-value>
+		<logger level="INFO" doc:name="schedulerStart" doc:id="59ec6b50-93fe-4d1f-9561-50df96b61731" message='#["scheduler start"]'/>
+		<os:retrieve doc:name="lastModifiedDateRetrieve" doc:id="ac99eab3-bf98-4e1b-afee-294d8b692116" key="lastModifiedDate" target="lastModifiedDate">
+			<os:default-value ><![CDATA[#[(now() >> "UTC") as DateTime as String {format:"yyyy-MM-dd'T'HH:mm:ss.SSS'Z'"}]]]></os:default-value>
 		</os:retrieve>
-		<ee:transform doc:name="Transform Message" doc:id="321dda7f-c347-467e-9c31-e795b01626a3" >
-			<ee:message >
-				<ee:set-payload ><![CDATA[%dw 2.0
-output application/json
----
-vars.lastRun]]></ee:set-payload>
-			</ee:message>
-		</ee:transform>
+		<logger level="INFO" doc:name="retrieveVariable" doc:id="41dbac9f-1fd8-4260-984e-c31596c9d1b2" message="#[vars.lastModifiedDate]"/>
 		<http:request method="GET" doc:name="Request" doc:id="37c5bc2c-24bd-4cc2-9a62-a0cd766dbdd9" config-ref="HTTP_Request_configuration1" path="/accountCreation">
 			<http:query-params ><![CDATA[#[output application/java
 ---
 {
-	lastRun : vars.lastRun
+	lastModifiedDate : vars.lastModifiedDate
 }]]]></http:query-params>
 		</http:request>
-		<logger level="INFO" doc:name="Logger1" doc:id="8c89b66f-72bd-4e4a-9931-d3b760604781" message="#[payload]" />
+		<logger level="INFO" doc:name="paylodFromSalesforceQuery" doc:id="8c89b66f-72bd-4e4a-9931-d3b760604781" message="#[payload]" />
         <ee:transform doc:name="Transform Message" doc:id="a7486c68-5065-4122-ad43-9ada859dfcfc">
             <ee:message>
                 <ee:set-payload><![CDATA[%dw 2.0
@@ -166,28 +159,27 @@ output application/json
 payload]]></ee:set-payload>
             </ee:message>
         </ee:transform>
-        <set-variable value="#[%dw 2.0&#10;output application/json&#10;---&#10;(payload orderBy ((item, index) -&gt; item.LastModifiedDate))[-1].LastModifiedDate default now() as DateTime as String {format:&quot;yyyy-MM-dd'T'HH:mm:ss.SSS'Z'&quot;}]" doc:name="lastModifiedDate" doc:id="a776d609-8c2f-49c1-844f-b5fd2c6386d7" variableName="lastModifiedDate"/>
-		<os:store doc:name="Store" doc:id="e2cb3b71-969c-4a3e-9489-89d8d68ab3cb" key="lastRunTime">
+        <set-variable value="#[%dw 2.0&#10;output application/json&#10;---&#10;(payload orderBy ((item, index) -&gt; item.LastModifiedDate))[-1].LastModifiedDate default (now() &gt;&gt; &quot;UTC&quot;) as DateTime as String {format:&quot;yyyy-MM-dd'T'HH:mm:ss.SSS'Z'&quot;}]" doc:name="lastModifiedDate" doc:id="a776d609-8c2f-49c1-844f-b5fd2c6386d7" variableName="lastModifiedDate"/>
+		<os:store doc:name="lastModifiedDateStore" doc:id="e2cb3b71-969c-4a3e-9489-89d8d68ab3cb" key="lastModifiedDate">
 			<os:value ><![CDATA[#[vars.lastModifiedDate]]]></os:value>
 		</os:store>
-		<logger level="INFO" doc:name="Logger2" doc:id="00afa417-eed9-41c3-9f32-39aadaac7fe3" message="#[payload]" />
+		<logger level="INFO" doc:name="lastModifiedDateStore" doc:id="00afa417-eed9-41c3-9f32-39aadaac7fe3" message='#[{"payloadFromSalesforceQuery":payload,&#10;"lastModifiedDate":vars.lastModifiedDate}]' />
         <flow-ref doc:name="Flow Reference" doc:id="28bab80a-5ef0-4023-ad0c-e320909a7ff5" name="post:\syncAccounts:application\json:prc-api-salesdb-config" />
-        <logger level="INFO" doc:name="Logger" doc:id="53b6e2e3-ffe5-4f54-9df3-23197a8703b2" message="#[payload]" />
+        <logger level="INFO" doc:name="payloadStatusFromDatabase" doc:id="53b6e2e3-ffe5-4f54-9df3-23197a8703b2" message="#[payload]" />
         <ee:transform doc:name="Transform Message">
             <ee:message>
                 <ee:set-payload><![CDATA[%dw 2.0
 output application/json
 ---
-if (payload.status == "Account updated successfully"){
-  status: "Account updated successfully"
-} else {
-  status: "Account created successfully"
+if (payload[0] == null)
+  { status: "No New Accounts from Salesforce" }
+ else {
+  status: "Account created/updated successfully"
 }]]></ee:set-payload>
             </ee:message>
         </ee:transform>
     </flow>
     <flow name="post:\syncAccounts:application\json:prc-api-salesdb-config" doc:id="f1048506-5f24-43b8-bc19-b03fac4a8511">
-		<logger level="INFO" doc:name="Logger3" doc:id="3119c5e3-c7f6-4ff1-9e07-8b355aa4734b" message="#[payload]" />
         <ee:transform doc:name="Transform Message" doc:id="ce478dc4-9608-4fab-8730-74b3ab285526">
             <ee:message>
                 <ee:set-payload><![CDATA[%dw 2.0
@@ -196,7 +188,6 @@ output application/json
 payload]]></ee:set-payload>
             </ee:message>
         </ee:transform>
-        <logger level="INFO" doc:name="Logger4" doc:id="108b01a4-d10b-48b0-aaaf-ca7347cb2d96" message="#[payload]" />
         <foreach doc:name="For Each" doc:id="8da3b0ec-7c34-4a38-bcf7-c335b9d8dbab">
             <set-variable value="#[payload.Id]" doc:name="Set Variable" doc:id="831b1310-0876-4590-bb17-3336d3d1207f" variableName="id" />
             <http:request method="GET" doc:name="Request" doc:id="e408efc5-2330-47a8-a5bc-b5698a72c689" path="/accountRetieve" config-ref="HTTP_Request_configuration" outputMimeType="application/json" target="aa">
@@ -206,7 +197,7 @@ payload]]></ee:set-payload>
 	Id : vars.id
 }]]]></http:query-params>
             </http:request>
-            <logger level="INFO" doc:name="Logger" doc:id="66c25504-2105-4df5-b044-13a626289008" message="#[payload]" />
+            <logger level="INFO" doc:name="payloadFromDatabase" doc:id="66c25504-2105-4df5-b044-13a626289008" message="#[payload]" />
             <choice doc:name="Choice" doc:id="ecd240d0-5977-48ad-b95d-7fa4cf8467a8">
                 <when expression="#[!isEmpty(vars.aa.Account_id)]">
                     <http:request method="PUT" doc:name="Request" doc:id="f2e5a298-eb38-4727-9bbd-7375fec5eb51" config-ref="HTTP_Request_configuration" path="/accountCreation/{Id}">
@@ -219,7 +210,7 @@ payload]]></ee:set-payload>
                     <ee:transform doc:name="Transform Message" doc:id="6cc41716-b5a5-428c-b6ce-17c77d74d6d7">
                         <ee:message>
                             <ee:set-payload><![CDATA[%dw 2.0
-output application/java
+output application/json
 ---
 {
   status: "Account updated successfully"
